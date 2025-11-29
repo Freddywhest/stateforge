@@ -1,0 +1,48 @@
+<?php
+
+namespace App\Stores;
+
+use Roddy\StateForge\Stores\BaseStore;
+
+class {{class}} extends BaseStore
+{
+    protected function initializeState(): array
+    {
+        /**
+         * Sample of usage
+         */
+        return [
+            'count' => 0,
+            'created_at' => now()->toISOString(),
+            
+            'increment' => function (int $by = 1) {
+                $this->setState(fn($state) => array_merge($state, [
+                    'count' => $state['count'] + $by,
+                    'updated_at' => now()->toISOString()
+                ]));
+            },
+            
+            'decrement' => function (int $by = 1) {
+                $this->setState(fn($state) => array_merge($state, [
+                    'count' => $state['count'] - $by,
+                    'updated_at' => now()->toISOString()
+                ]));
+            },
+            
+            'resetState' => function () {
+                $this->setState(fn($state) => array_merge($state, [
+                    'count' => 0,
+                    'updated_at' => now()->toISOString()
+                ]));
+            },
+            
+            'getInfo' => function () {
+                return [
+                    'count' => $this->count,
+                    'created_at' => $this->created_at,
+                    'persistence' => $this->getPersistenceType()
+                ];
+            }
+        ];
+    }
+}

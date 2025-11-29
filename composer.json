@@ -1,0 +1,30 @@
+{
+    "name": "roddy/stateforge",
+    "description": "Elegant, auto-discovered state management for Laravel",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Roddy\\Stateforge\\": "src/"
+        },
+        "files": [
+            "src/helpers.php"
+        ]
+    },
+    "authors": [
+        {
+            "name": "Alfred Nti",
+            "email": "alfrednti5000@gmail.com"
+        }
+    ],
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "require": {},
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Roddy\\Stateforge\\StateforgeServiceProvider"
+            ]
+        }
+    }
+}

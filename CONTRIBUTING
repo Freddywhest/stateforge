@@ -1,0 +1,384 @@
+# Contributing to StateForge
+
+Thank you for your interest in contributing to StateForge! We welcome contributions from the community and are grateful for your help in making this package better.
+
+## 🎯 Table of Contents
+
+-   [Code of Conduct](#code-of-conduct)
+-   [Getting Started](#getting-started)
+-   [Development Setup](#development-setup)
+-   [Making Changes](#making-changes)
+-   [Pull Request Process](#pull-request-process)
+-   [Bug Reports](#bug-reports)
+-   [Feature Requests](#feature-requests)
+-   [Documentation](#documentation)
+-   [Community](#community)
+
+## 📜 Code of Conduct
+
+By participating in this project, you are expected to uphold our Code of Conduct:
+
+-   Be respectful and inclusive
+-   Exercise consideration and respect in your speech and actions
+-   Attempt collaboration before conflict
+-   Refrain from demeaning, discriminatory, or harassing behavior
+-   Be mindful of your surroundings and fellow participants
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+-   PHP 8.1 or higher
+-   Composer
+-   Laravel 10.0 or higher
+-   Git
+
+### First Time Contributors
+
+If you're new to open source or this project, here are some ways to get started:
+
+1. **Good First Issues**: Look for issues labeled `good first issue` or `help wanted`
+2. **Documentation**: Improve documentation, fix typos, or add examples
+3. **Bug Fixes**: Help triage and fix reported bugs
+4. **Examples**: Add more usage examples
+
+## 💻 Development Setup
+
+### 1. Fork the Repository
+
+Click the "Fork" button in the top-right corner of the [repository page](https://github.com/FreddyWhest/stateforge).
+
+### 2. Clone Your Fork
+
+```bash
+git clone https://github.com/FreddyWhest/stateforge.git
+cd stateforge
+```
+
+### 3. Set Upstream Remote
+
+```bash
+git remote add upstream https://github.com/FreddyWhest/stateforge.git
+```
+
+### 4. Create Test Laravel Project
+
+Since this is a Laravel package, you'll need a Laravel project to test your changes:
+
+```bash
+# Create a new Laravel project for testing
+composer create-project laravel/laravel stateforge-test
+
+# Navigate to the test project
+cd stateforge-test
+
+# Link your local StateForge package
+composer config repositories.stateforge path /path/to/your/stateforge
+composer require roddy/stateforge:@dev
+```
+
+### 5. Test Your Changes
+
+Make your changes in the package directory, then test them in your Laravel test project:
+
+```bash
+# From your test project
+php artisan make:store TestStore
+php artisan tinker
+
+# In tinker
+>>> use Roddy\StateForge\Facades\StateForge;
+>>> use App\Stores\TestStore;
+>>> $store = StateForge::get(TestStore::class);
+>>> $store->getState();
+```
+
+## 🔧 Making Changes
+
+### Branch Naming
+
+Create a descriptive branch name:
+
+```bash
+git checkout -b feature/your-feature-name
+# or
+git checkout -b fix/issue-description
+# or
+git checkout -b docs/improve-readme
+```
+
+### Code Style
+
+StateForge follows PSR-12 coding standards. Please ensure your code adheres to these standards.
+
+### Commit Messages
+
+Write clear, descriptive commit messages:
+
+```
+feat: add session persistence middleware
+
+- Implement SessionPersistMiddleware
+- Add session configuration options
+- Update documentation with examples
+
+Fixes #123
+```
+
+**Commit Message Format:**
+
+```
+type: subject
+
+body
+
+footer
+```
+
+**Types:**
+
+-   `feat`: New feature
+-   `fix`: Bug fix
+-   `docs`: Documentation changes
+-   `style`: Code style changes (formatting, etc.)
+-   `refactor`: Code refactoring
+-   `test`: Manual testing performed
+-   `chore`: Maintenance tasks
+
+## 🔄 Pull Request Process
+
+### 1. Keep Your Fork Updated
+
+```bash
+git fetch upstream
+git merge upstream/main
+```
+
+### 2. Make Your Changes
+
+-   Write clear, well-documented code
+-   Test your changes in a Laravel application
+-   Update documentation as needed
+-   Follow the existing code style
+
+### 3. Manual Testing Checklist
+
+Before submitting a PR, please manually test:
+
+-   [ ] Store creation works
+-   [ ] State persistence works (file/cache/session)
+-   [ ] User isolation works
+-   [ ] Auto-discovery works
+-   [ ] Artisan commands work
+-   [ ] No breaking changes to existing functionality
+
+### 4. Submit Pull Request
+
+1. Push your changes to your fork
+2. Create a Pull Request from your fork to the main repository
+3. Fill out the PR template completely
+4. Reference any related issues
+
+### PR Template
+
+When creating a PR, please use this template:
+
+```markdown
+## Description
+
+<!-- Describe your changes in detail -->
+
+## Related Issue
+
+<!-- Please link to the issue here: Fixes #123 -->
+
+## Type of Change
+
+-   [ ] Bug fix (non-breaking change which fixes an issue)
+-   [ ] New feature (non-breaking change which adds functionality)
+-   [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
+-   [ ] Documentation update
+-   [ ] Code refactoring
+-   [ ] Performance improvement
+
+## Testing Performed
+
+-   [ ] Tested store creation and usage
+-   [ ] Verified persistence (file/cache/session)
+-   [ ] Confirmed user isolation works
+-   [ ] Tested auto-discovery
+-   [ ] Verified Artisan commands work
+-   [ ] Tested in Laravel application
+
+## Checklist
+
+-   [ ] My code follows the code style of this project
+-   [ ] I have updated the documentation accordingly
+-   [ ] I have manually tested these changes
+-   [ ] I have described my testing process
+```
+
+## 🐛 Bug Reports
+
+When reporting bugs, please include:
+
+### Bug Report Template
+
+````markdown
+## Description
+
+<!-- A clear description of the bug -->
+
+## Steps to Reproduce
+
+1.
+2.
+3.
+
+## Expected Behavior
+
+<!-- What you expected to happen -->
+
+## Actual Behavior
+
+<!-- What actually happened -->
+
+## Environment
+
+-   PHP Version:
+-   Laravel Version:
+-   StateForge Version:
+-   Persistence Type:
+
+## Code Example
+
+```php
+// Please provide a minimal code example that reproduces the issue
+```
+````
+
+## Additional Context
+
+<!-- Logs, screenshots, etc. -->
+
+````
+
+## 💡 Feature Requests
+
+We welcome feature requests! Please use this template:
+
+### Feature Request Template
+
+```markdown
+## Problem
+<!-- The problem you're facing -->
+
+## Proposed Solution
+<!-- How StateForge could solve this problem -->
+
+## Use Case
+<!-- Describe your specific use case -->
+
+## Alternatives Considered
+<!-- Other solutions you've considered -->
+
+## Additional Context
+<!-- Examples, code snippets, etc. -->
+````
+
+## 📚 Documentation
+
+### Documentation Guidelines
+
+We value good documentation! When contributing:
+
+1. **Update README.md** for user-facing changes
+2. **Add code examples** for new features
+3. **Update PHPDoc blocks** for classes and methods
+4. **Include usage examples** in docblocks
+
+### Example Documentation Update
+
+```php
+/**
+ * Creates a new store with the given configuration
+ *
+ * @param string $storeClass The store class to create
+ * @param array $config Configuration options
+ * @return BaseStore
+ *
+ * @example
+ * $store = StateForge::create(CounterStore::class, [
+ *     'persistence' => 'file',
+ *     'cache_ttl' => 3600
+ * ]);
+ */
+public function create(string $storeClass, array $config = []): BaseStore
+```
+
+## 🏗️ Architecture
+
+### Package Structure
+
+```
+src/
+├── Contracts/          # Interfaces (Store, Middleware)
+├── Stores/             # BaseStore and related
+├── Middlewares/        # Persistence middlewares
+├── Commands/           # Artisan commands
+├── Http/               # HTTP Middleware
+├── Facades/            # Laravel facades
+├── ClientIdentifier.php
+├── StateForgeManager.php
+├── StoreRegistry.php
+└── StateForgeServiceProvider.php
+
+config/
+└── stateforge.php      # Package configuration
+
+stubs/
+└── store.stub          # Store template
+```
+
+### Key Components
+
+1. **StateForgeManager**: Main service container
+2. **BaseStore**: Abstract store implementation
+3. **StoreRegistry**: Auto-discovery system
+4. **ClientIdentifier**: User isolation system
+5. **Persistence Middlewares**: File, cache, session persistence
+
+## 🚨 Critical Changes
+
+If you're making significant changes, please:
+
+1. **Open an issue first** to discuss the changes
+2. **Consider backward compatibility**
+3. **Update major version** if breaking changes are necessary
+4. **Provide migration guides** for breaking changes
+
+## 🤝 Community
+
+### Getting Help
+
+-   **GitHub Issues**: For bug reports and feature requests
+-   **GitHub Discussions**: For questions and community support
+-   **Pull Requests**: For code contributions
+
+### Recognition
+
+Contributors will be recognized in:
+
+-   GitHub contributor graph
+-   Release notes
+-   Documentation (for significant contributions)
+
+## 📝 Additional Resources
+
+-   [Laravel Package Development](https://laravel.com/docs/package-development)
+-   [PHP-FIG PSR Standards](https://www.php-fig.org/psr/)
+-   [Semantic Versioning](https://semver.org/)
+
+## 🙏 Thank You!
+
+Thank you for considering contributing to StateForge! Your time and effort are greatly appreciated. Together, we can build an amazing state management solution for the Laravel community.
