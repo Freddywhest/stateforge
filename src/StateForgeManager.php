@@ -28,53 +28,10 @@ class StateForgeManager
         if (!$this->stores->has($storeClass)) {
             $store = new $storeClass();
 
-            $persistence = $config['persistence'] ?? config('stateforge.default.persistence', 'file');
-            $this->applyPersistenceMiddleware($store, $storeClass, $persistence, $config);
-
             $this->stores->put($storeClass, $store);
         }
 
         return $this->stores->get($storeClass);
-    }
-
-    protected function applyPersistenceMiddleware(BaseStore $store, string $storeClass, string $persistence, array $config): void
-    {
-        $storeName = class_basename($storeClass);
-        $clientId = $this->clientIdentifier->getClientId();
-
-        switch ($persistence) {
-            case 'file':
-                $store->use(new Middlewares\FilePersistMiddleware(
-                    $this->getStoreFilePath($storeName, $clientId)
-                ));
-                break;
-
-            case 'cache':
-                $prefix = $config['cache_prefix'] ?? config('stateforge.persistence.cache.prefix', 'stateforge');
-                $ttl = $config['cache_ttl'] ?? config('stateforge.persistence.cache.ttl', 3600);
-                $driver = $config['cache_driver'] ?? config('stateforge.persistence.cache.driver');
-
-                $store->use(new Middlewares\CachePersistMiddleware(
-                    $this->getCacheKey($storeName, $clientId, $prefix),
-                    $ttl,
-                    $driver
-                ));
-                break;
-
-            case 'session':
-                $prefix = $config['session_prefix'] ?? config('stateforge.persistence.session.prefix', 'stateforge');
-
-                $store->use(new Middlewares\SessionPersistMiddleware(
-                    $this->getSessionKey($storeName, $clientId, $prefix)
-                ));
-                break;
-
-            case 'none':
-                break;
-
-            default:
-                throw new \InvalidArgumentException("Invalid persistence type: {$persistence}");
-        }
     }
 
     protected function getStoreFilePath(string $storeName, string $clientId): string
@@ -199,21 +156,6 @@ class StateForgeManager
         }
 
         return $stats;
-    }
-
-    public function setPersistence(string $storeClass, string $persistence, array $config = []): void
-    {
-        if ($this->stores->has($storeClass)) {
-            $store = $this->stores->get($storeClass);
-
-            $store->middlewares = array_filter($store->middlewares, function ($middleware) {
-                return !($middleware instanceof Middlewares\FilePersistMiddleware) &&
-                    !($middleware instanceof Middlewares\CachePersistMiddleware) &&
-                    !($middleware instanceof Middlewares\SessionPersistMiddleware);
-            });
-
-            $this->applyPersistenceMiddleware($store, $storeClass, $persistence, $config);
-        }
     }
 
     public function getClientId(): string

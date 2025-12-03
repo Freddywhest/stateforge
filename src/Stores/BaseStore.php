@@ -6,6 +6,7 @@ use Roddy\StateForge\ClientIdentifier;
 use Roddy\StateForge\Contracts\Store;
 use Roddy\StateForge\Middlewares\CachePersistMiddleware;
 use Roddy\StateForge\Middlewares\FilePersistMiddleware;
+use Roddy\StateForge\Middlewares\SessionPersistMiddleware;
 
 abstract class BaseStore implements Store
 {
@@ -13,45 +14,28 @@ abstract class BaseStore implements Store
 
     protected array $state = [];
     protected array $listeners = [];
+    protected string $persistenceType = 'file';
     protected array $middlewares = [];
 
-    public function __construct()
+    final public function __construct()
     {
         $this->state = $this->initializeState();
-        $this->loadPersistedState();
+        $this->loadUpdaterEvents(function ($previousState, $newState) {
+            $this->onUpdate($previousState, $newState);
+        });
+        $this->middlewares = $this->middlewares();
+        $this->loadUpdatedDataFromMiddleware();
     }
 
     abstract protected function initializeState(): array;
 
-    protected function loadPersistedState(): void
+    abstract protected function onUpdate(array $previousState, array $newState): void;
+
+    abstract protected function middlewares(): array;
+
+    final public function setState(callable $updater): void
     {
-        foreach ($this->middlewares as $middleware) {
-            $persistedState = null;
-
-            if (method_exists($middleware, 'loadFromFile')) {
-                $persistedState = $middleware->loadFromFile();
-            } elseif (method_exists($middleware, 'loadFromCache')) {
-                $persistedState = $middleware->loadFromCache();
-            } elseif (method_exists($middleware, 'loadFromSession')) {
-                $persistedState = $middleware->loadFromSession();
-            }
-
-            if ($persistedState) {
-                $this->state = array_merge($this->state, $persistedState);
-                break;
-            }
-        }
-    }
-
-    public function use(callable $middleware): self
-    {
-        $this->middlewares[] = $middleware;
-        return $this;
-    }
-
-    public function setState(callable $updater): void
-    {
-        $this->loadUpdatedDataFromMiddlewar();
+        $this->loadUpdatedDataFromMiddleware();
 
         $updater = $this->applyMiddlewares($updater);
         $previousState = $this->state;
@@ -60,50 +44,65 @@ abstract class BaseStore implements Store
         $this->notifyListeners($previousState, $this->state);
     }
 
-    protected function applyMiddlewares(callable $updater): callable
+    final protected function applyMiddlewares(callable $updater): callable
     {
-        $middlewares = array_reverse($this->middlewares);
+        $class = class_basename(static::class);
+        $clientId = (new ClientIdentifier())->getClientId();
+        if (str_contains($this->persistenceType, 'file')) {
+            $arg = $this->getStoreFilePath($class, $clientId);
+            $persistenceClass = FilePersistMiddleware::class;
+            $middleware = new $persistenceClass($arg);
+            $updater = fn($state) => $middleware($updater, $state);
+        } else if (str_contains($this->persistenceType, 'cache')) {
+            $arg = $this->getCacheKey($class, $clientId, config('stateforge.cache.prefix', 'stateforge'));
+            $persistenceClass = CachePersistMiddleware::class;
+            $middleware = new $persistenceClass($arg);
+            $updater = fn($state) => $middleware($updater, $state);
+        } else if (str_contains($this->persistenceType, 'session')) {
+            $arg = $this->getSessionKey($class, $clientId, config('stateforge.persistence.session.prefix', 'stateforge'));
+            $persistenceClass = SessionPersistMiddleware::class;
+            $middleware = new $persistenceClass($arg);
+            $updater = fn($state) => $middleware($updater, $state);
+        }
 
-        foreach ($middlewares as $middleware) {
+        foreach ($this->middlewares as $middleware) {
+            $middleware = is_string($middleware) ? new $middleware : $middleware;
             $updater = fn($state) => $middleware($updater, $state);
         }
 
         return $updater;
     }
 
-    public function getState(): array
+    final public function getState(): array
     {
         return $this->state;
     }
 
-    public function subscribe(callable $listener): callable
+    private function loadUpdaterEvents(callable $listener): callable
     {
         $this->listeners[] = $listener;
-
-        return function () use ($listener) {
-            $this->listeners = array_filter($this->listeners, fn($l) => $l !== $listener);
-        };
+        return $listener;
     }
 
-    protected function notifyListeners(array $previousState, array $newState): void
+    final protected function notifyListeners(array $previousState, array $newState): void
     {
         foreach ($this->listeners as $listener) {
             $listener($previousState, $newState);
         }
     }
 
-    public function __get($property)
+    final public function __get($property)
     {
-        $this->loadUpdatedDataFromMiddlewar();
+        $this->loadUpdatedDataFromMiddleware();
         return $this->state[$property] ?? null;
     }
 
-    public function __set($property, $value)
+    final public function __set($property, $value)
     {
         $this->setState(fn($state) => array_merge($state, [$property => $value]));
     }
 
-    public function __call($method, $args)
+    final public function __call($method, $args)
     {
         if (isset($this->state[$method]) && is_callable($this->state[$method])) {
             return call_user_func_array($this->state[$method], $args);
@@ -112,27 +111,24 @@ abstract class BaseStore implements Store
         throw new \BadMethodCallException("Method {$method} not found in store");
     }
 
-    public function reset(): void
+    final public function reset(): void
     {
         $this->state = $this->initializeState();
     }
 
-    public function getPersistenceType(): string
+    final public function getPersistenceType(): string
     {
-        foreach ($this->middlewares as $middleware) {
-            if ($middleware instanceof \Roddy\StateForge\Middlewares\FilePersistMiddleware) {
-                return 'file';
-            } elseif ($middleware instanceof \Roddy\StateForge\Middlewares\CachePersistMiddleware) {
-                return 'cache';
-            } elseif ($middleware instanceof \Roddy\StateForge\Middlewares\SessionPersistMiddleware) {
-                return 'session';
-            }
+        if (str_contains($this->persistenceType, 'file')) {
+            return 'file';
+        } else if (str_contains($this->persistenceType, 'cache')) {
+            return 'cache';
+        } else if (str_contains($this->persistenceType, 'session')) {
+            return 'session';
         }
-
         return 'none';
     }
 
-    private function loadUpdatedDataFromMiddlewar()
+    private function loadUpdatedDataFromMiddleware()
     {
         $class = class_basename(static::class);
         $clientId = (new ClientIdentifier())->getClientId();

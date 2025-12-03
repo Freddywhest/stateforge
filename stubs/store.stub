@@ -2,10 +2,13 @@
 
 namespace App\Stores;
 
+use Illuminate\Support\Facades\Log;
 use Roddy\StateForge\Stores\BaseStore;
 
 class {{class}} extends BaseStore
 {
+    protected string $persistenceType = 'file';
+    
     protected function initializeState(): array
     {
         /**
@@ -44,5 +47,22 @@ class {{class}} extends BaseStore
                 ];
             }
         ];
+    }
+
+    protected function middlewares(): array
+    {
+        return [];
+    }
+
+    protected function onUpdate(array $previousState, array $newState): void
+    {
+        // Handle state updates, e.g., logging or triggering events
+        // This is a placeholder for any additional logic you want to implement
+        // when the state changes.
+        // For example, you could log the change:
+        Log::info('Counter state updated', [
+            'previous' => $previousState,
+            'new' => $newState
+        ]);
     }
 }

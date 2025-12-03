@@ -1,38 +1,38 @@
 {
-    "name": "roddy/stateforge",
-    "description": "Elegant, auto-discovered state management for Laravel",
-    "type": "library",
-    "license": "MIT",
-    "autoload": {
-        "psr-4": {
-            "Roddy\\Stateforge\\": "src/"
-        },
-        "files": [
-            "src/helpers.php"
-        ]
+  "name": "roddy/stateforge",
+  "description": "Elegant, simple state management for Laravel applications.",
+  "type": "library",
+  "license": "MIT",
+  "autoload": {
+    "psr-4": {
+      "Roddy\\Stateforge\\": "src/"
     },
-    "authors": [
-        {
-            "name": "Alfred Nti",
-            "email": "alfrednti5000@gmail.com"
-        }
-    ],
-    "minimum-stability": "stable",
-    "prefer-stable": true,
-    "require": {
-        "php": "^8.0",
-        "illuminate/support": "^9.0 || ^10.0 || ^11.0 || ^12.0",
-        "illuminate/contracts": "^9.0 || ^10.0 || ^11.0 || ^12.0"
-    },
-    "require-dev": {
-        "illuminate/console": "^9.0 || ^10.0 || ^11.0 || ^12.0",
-        "illuminate/http": "^9.0 || ^10.0 || ^11.0 || ^12.0"
-    },
-    "extra": {
-        "laravel": {
-            "providers": [
-                "Roddy\\Stateforge\\StateforgeServiceProvider"
-            ]
-        }
+    "files": [
+      "src/helpers.php"
+    ]
+  },
+  "authors": [
+    {
+      "name": "Alfred Nti",
+      "email": "alfrednti5000@gmail.com"
     }
+  ],
+  "minimum-stability": "stable",
+  "prefer-stable": true,
+  "require": {
+    "php": "^8.0",
+    "illuminate/support": "^9.0 || ^10.0 || ^11.0 || ^12.0",
+    "illuminate/contracts": "^9.0 || ^10.0 || ^11.0 || ^12.0"
+  },
+  "require-dev": {
+    "illuminate/console": "^9.0 || ^10.0 || ^11.0 || ^12.0",
+    "illuminate/http": "^9.0 || ^10.0 || ^11.0 || ^12.0"
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "Roddy\\Stateforge\\StateforgeServiceProvider"
+      ]
+    }
+  }
 }

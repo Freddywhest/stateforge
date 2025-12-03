@@ -3,48 +3,51 @@
 > **Elegant, Isolated State Management for Laravel**
 
 [![Latest Version](https://img.shields.io/packagist/v/roddy/stateforge.svg?style=flat-square)](https://packagist.org/packages/roddy/stateforge)
-[![Total Downloads](https://img.shields.io/packagist/dt/roddy/laravel-stateforge.svg?style=flat-square)](https://packagist.org/packages/roddy/stateforge)
 [![License](https://img.shields.io/packagist/l/roddy/stateforge.svg?style=flat-square)](https://packagist.org/packages/roddy/stateforge)
 
-StateForge is a powerful, elegant state management package for Laravel that provides isolated, persistent state stores with multiple persistence options. Built with developer experience in mind, it brings the simplicity of client-side state management to your Laravel applications.
+StateForge is a powerful, elegant state management package for Laravel that provides isolated, persistent state stores with automatic discovery and multiple persistence options. Built with developer experience in mind, it brings the simplicity of client-side state management to your Laravel applications.
 
 ## 📖 Table of Contents
 
--   [Features](#-features)
--   [Installation](#-installation)
--   [Quick Start](#-quick-start)
--   [Core Concepts](#-core-concepts)
--   [Store Examples](#-store-examples)
--   [API Reference](#-api-reference)
--   [Persistence Options](#-persistence-options)
--   [Advanced Usage](#-advanced-usage)
--   [Configuration](#-configuration)
--   [Maintenance](#-features)
--   [Best Practices](#-best-practices)
--   [Troubleshooting](#-troubleshooting)
--   [FAQ](#-faq)
--   [Contributing](#-contributing)
--   [License](#-faq)
+- [Features](#-features)
+- [Installation](#-installation)
+- [Quick Start](#-quick-start)
+- [Core Concepts](#-core-concepts)
+- [Store Lifecycle](#-store-lifecycle)
+- [Store Examples](#-store-examples)
+- [Events & Hooks](#-events--hooks)
+- [API Reference](#-api-reference)
+- [Persistence Options](#-persistence-options)
+- [Advanced Usage](#-advanced-usage)
+- [Configuration](#-configuration)
+- [Maintenance](#-maintenance)
+- [Best Practices](#-best-practices)
+- [Troubleshooting](#-troubleshooting)
+- [FAQ](#-faq)
+- [Contributing](#-contributin)
+- [License](#-license)
 
 ## ✨ Features
 
--   🚀 **Auto-discovery** - Stores automatically discovered and registered
--   🔒 **User Isolation** - Each browser/user gets completely isolated stores
--   💾 **Multiple Persistence** - File, cache, session, or in-memory storage
--   🎯 **Type Safety** - Use class references instead of magic strings
--   🔄 **Persistence Across Sessions** - State survives browser restarts
--   🧩 **Middleware Support** - Extend functionality with middleware
--   🛠 **Artisan Commands** - Generate stores and manage cleanup
--   📦 **Zero Configuration** - Works out of the box with sensible defaults
--   🔍 **Browser Fingerprinting** - Fallback identification when cookies are cleared
--   🛡️ **Data Integrity** - Checksum verification for persisted data
+- 🚀 **Auto-discovery** - Stores automatically discovered and registered
+- 🔒 **User Isolation** - Each browser/user gets completely isolated stores
+- 💾 **Multiple Persistence** - File, cache, session, or in-memory storage
+- 🎯 **Type Safety** - Use class references instead of magic strings
+- 🔄 **Persistence Across Sessions** - State survives browser restarts
+- 🧩 **Lifecycle Hooks** - `onUpdate()` for automatic state change handling
+- 🔌 **Custom Middlewares** - Extend store behavior with middleware arrays
+- 🎭 **Event System** - Before/after hooks and global events
+- 🛠 **Artisan Commands** - Generate stores and manage cleanup
+- 📦 **Zero Configuration** - Works out of the box with sensible defaults
+- 🔍 **Browser Fingerprinting** - Fallback identification when cookies are cleared
+- 🛡️ **Data Integrity** - Checksum verification for persisted data
 
 ## 🚀 Installation
 
 ### Requirements
 
--   PHP 8.1 or higher
--   Laravel 10.0 or higher
+- PHP 8.0 or higher
+- Laravel 9.0 or higher
 
 ### Install via Composer
 
@@ -66,7 +69,7 @@ php artisan vendor:publish --provider="Roddy\\StateForge\\StateForgeServiceProvi
 php artisan make:store Counter
 ```
 
-This creates `app/Stores/CounterStore.php`:
+This creates `app/Stores/CounterStore.php` with the enhanced architecture:
 
 ```php
 <?php
@@ -77,6 +80,8 @@ use Roddy\StateForge\Stores\BaseStore;
 
 class CounterStore extends BaseStore
 {
+    protected string $persistenceType = 'file';
+
     protected function initializeState(): array
     {
         return [
@@ -97,7 +102,7 @@ class CounterStore extends BaseStore
                 ]));
             },
 
-            'reset' => function () {
+            'resetState' => function () {
                 $this->setState(fn($state) => array_merge($state, [
                     'count' => 0,
                     'updated_at' => now()->toISOString()
@@ -113,10 +118,25 @@ class CounterStore extends BaseStore
             }
         ];
     }
+
+    protected function middlewares(): array
+    {
+        return []; // Add custom middlewares here. Closure or Class
+    }
+
+    protected function onUpdate(array $previousState, array $newState): void
+    {
+        // Automatic logging on every state change
+        \Log::info('Counter state updated', [
+            'previous_count' => $previousState['count'] ?? 0,
+            'new_count' => $newState['count'] ?? 0,
+            'changes' => array_diff_assoc($newState, $previousState)
+        ]);
+    }
 }
 ```
 
-### 2. Create a Controller
+### 2. Use in Controller
 
 ```php
 <?php
@@ -130,7 +150,7 @@ class CounterController extends Controller
 {
     public function show()
     {
-        $counter = useStore(CounterStore::class);
+        $counter = StateForge::get(CounterStore::class); // or useStore(CounterStore::class)
 
         return response()->json([
             'count' => $counter->count,
@@ -140,8 +160,10 @@ class CounterController extends Controller
 
     public function increment()
     {
-        $counter = useStore(CounterStore::class);
+        $counter = StateForge::get(CounterStore::class); // or useStore(CounterStore::class)
         $counter->increment();
+
+        // onUpdate() is automatically called with logging!
 
         return response()->json([
             'success' => true,
@@ -161,51 +183,190 @@ Route::post('/counter/increment', [CounterController::class, 'increment']);
 
 ### 4. Test It Out!
 
-Visit `/counter` in your browser and see the counter in action! Each browser will have its own isolated counter.
+Visit `/counter` in your browser and see the counter in action! Each browser will have its own isolated counter, and all state changes are automatically logged.
 
 ## 🧠 Core Concepts
 
-### What is a Store?
+### Enhanced Store Architecture
 
-A store is a self-contained unit of state with associated actions. Think of it like a mini-database for a specific part of your application.
-
-### Store Structure
+StateForge 2.0 introduces a more structured store architecture:
 
 ```php
-protected function initializeState(): array
+class YourStore extends BaseStore
 {
-    return [
-        // State properties
-        'property' => 'value',
+    // 1. Define persistence type (file, cache, session, none)
+    protected string $persistenceType = 'file';
 
-        // Actions (methods)
-        'actionName' => function () {
-            // Modify state using setState
-        },
+    // 2. Initialize your state and methods
+    protected function initializeState(): array { /* ... */ }
 
-        // Getters
-        'getData' => function () {
-            return $this->property;
-        }
-    ];
+    // 3. Add custom middlewares
+    protected function middlewares(): array { /* ... */ }
+
+    // 4. Handle state changes automatically
+    protected function onUpdate(array $previousState, array $newState): void { /* ... */ }
 }
 ```
+
+### Lifecycle Methods
+
+1. **`initializeState()`** - Define your state properties and methods
+2. **`middlewares()`** - Return array of custom middlewares
+3. **`onUpdate()`** - Called automatically after every state change
+4. **Automatic Persistence** - Based on `$persistenceType`
 
 ### User Isolation
 
 StateForge automatically isolates stores per user/browser combination:
 
--   ✅ Same browser, different tabs: Same store
--   ✅ Browser restart: Same store (persisted)
--   ✅ Different browser: Different store
--   ✅ Different device: Different store
+- ✅ Same browser, different tabs: Same store
+- ✅ Browser restart: Same store (persisted)
+- ✅ Different browser: Different store
+- ✅ Different device: Different store
+
+### Auto-discovery
+
+Stores placed in `app/Stores/` are automatically discovered and registered. No manual configuration needed!
+
+## 🔄 Store Lifecycle
+
+### Complete Lifecycle Flow
+
+```php
+class UserStore extends BaseStore
+{
+    protected string $persistenceType = 'file';
+
+    protected function initializeState(): array
+    {
+        return [
+            'user' => null,
+            'is_logged_in' => false,
+            // ... methods
+        ];
+    }
+
+    protected function middlewares(): array
+    {
+        return [
+            // Custom middleware that runs on every state change
+            function(callable $updater, array $state) {
+                // Called before state update
+                Log::debug('Middleware: Before update');
+                $newState = $updater($state);
+                Log::debug('Middleware: After update');
+                return $newState;
+            }
+        ];
+    }
+
+    protected function onUpdate(array $previousState, array $newState): void
+    {
+        // Automatic handling after every state change
+        if ($previousState['is_logged_in'] !== $newState['is_logged_in']) {
+            event(new UserLoginStatusChanged(
+                $newState['is_logged_in'],
+                $newState['user']
+            ));
+        }
+    }
+}
+```
+
+### Middleware System
+
+Add custom behavior to your stores:
+
+```php
+protected function middlewares(): array
+{
+    return [
+        // Validation middleware
+        function(callable $updater, array $state) {
+            $newState = $updater($state);
+
+            // Validate state
+            if (isset($newState['count']) && $newState['count'] < 0) {
+                throw new \InvalidArgumentException('Count cannot be negative');
+            }
+
+            return $newState;
+        },
+
+        // Logging middleware
+        function(callable $updater, array $state) {
+            $start = microtime(true);
+            $newState = $updater($state);
+            $duration = microtime(true) - $start;
+
+            Log::debug('State update completed', [
+                'duration' => $duration,
+                'changes' => array_diff_assoc($newState, $state)
+            ]);
+
+            return $newState;
+        },
+
+        // Analytics middleware
+        function(callable $updater, array $state) {
+            $newState = $updater($state);
+
+            if (app()->environment('production')) {
+                Analytics::track('state_updated', [
+                    'store' => static::class,
+                    'changes' => array_keys(array_diff_assoc($newState, $state))
+                ]);
+            }
+
+            return $newState;
+        }
+    ];
+}
+```
+
+### Automatic onUpdate() Handling
+
+The `onUpdate()` method is called automatically after every state change:
+
+```php
+protected function onUpdate(array $previousState, array $newState): void
+{
+    // Example 1: Automatic syncing with database
+    if (isset($newState['user']) && $newState['user'] !== $previousState['user']) {
+        // Sync user preferences to database
+        DB::table('user_preferences')->updateOrCreate(
+            ['user_id' => $newState['user']['id']],
+            ['preferences' => json_encode($newState['preferences'])]
+        );
+    }
+
+    // Example 2: Real-time broadcasting
+    if (isset($newState['cart_items']) && $newState['cart_items'] !== $previousState['cart_items']) {
+        broadcast(new CartUpdated($newState['cart_items']));
+    }
+
+    // Example 3: Cache invalidation
+    if (isset($newState['settings'])) {
+        Cache::forget('user_settings_' . auth()->id());
+    }
+
+    // Example 4: Audit logging
+    AuditLog::create([
+        'event' => 'state_update',
+        'store' => static::class,
+        'old_state' => $previousState,
+        'new_state' => $newState,
+        'changes' => array_diff_assoc($newState, $previousState)
+    ]);
+}
+```
 
 ## 🏗️ Store Examples
 
-### Shopping Cart Store
+### Shopping Cart Store with Lifecycle Hooks
 
 ```bash
-php artisan make:store CartStore
+php artisan make:store Cart
 ```
 
 ```php
@@ -217,12 +378,16 @@ use Roddy\StateForge\Stores\BaseStore;
 
 class CartStore extends BaseStore
 {
+    protected string $persistenceType = 'file';
+
     protected function initializeState(): array
     {
         return [
             'items' => [],
             'total' => 0,
             'item_count' => 0,
+            'coupon' => null,
+            'discount' => 0,
             'created_at' => now()->toISOString(),
 
             'addItem' => function ($productId, $name, $price, $quantity = 1) {
@@ -260,21 +425,16 @@ class CartStore extends BaseStore
                 });
             },
 
-            'updateQuantity' => function ($productId, $quantity) {
-                $this->setState(function($state) use ($productId, $quantity) {
-                    $items = array_map(function($item) use ($productId, $quantity) {
-                        if ($item['id'] === $productId) {
-                            $item['quantity'] = max(0, $quantity);
-                        }
-                        return $item;
-                    }, $state['items']);
+            'applyCoupon' => function ($code) {
+                $this->setState(function($state) use ($code) {
+                    $coupon = \App\Models\Coupon::where('code', $code)->valid()->first();
+                    $discount = $coupon ? $coupon->calculateDiscount($state['total']) : 0;
 
-                    $items = array_filter($items, fn($item) => $item['quantity'] > 0);
-
-                    return $this->calculateCartTotals(array_merge($state, [
-                        'items' => array_values($items),
+                    return array_merge($state, [
+                        'coupon' => $coupon,
+                        'discount' => $discount,
                         'updated_at' => now()->toISOString()
-                    ]));
+                    ]);
                 });
             },
 
@@ -283,6 +443,8 @@ class CartStore extends BaseStore
                     'items' => [],
                     'total' => 0,
                     'item_count' => 0,
+                    'coupon' => null,
+                    'discount' => 0,
                     'updated_at' => now()->toISOString()
                 ]));
             },
@@ -291,11 +453,59 @@ class CartStore extends BaseStore
                 return [
                     'item_count' => $this->item_count,
                     'total' => $this->total,
+                    'discount' => $this->discount,
+                    'final_total' => $this->total - $this->discount,
                     'items' => $this->items,
                     'persistence' => $this->getPersistenceType()
                 ];
             }
         ];
+    }
+
+    protected function middlewares(): array
+    {
+        return [
+            // Validate cart items
+            function(callable $updater, array $state) {
+                $newState = $updater($state);
+
+                // Ensure quantities are positive
+                foreach ($newState['items'] as $item) {
+                    if ($item['quantity'] < 1) {
+                        throw new \InvalidArgumentException('Item quantity must be at least 1');
+                    }
+                }
+
+                return $newState;
+            }
+        ];
+    }
+
+    protected function onUpdate(array $previousState, array $newState): void
+    {
+        // Log cart changes
+        \Log::info('Cart updated', [
+            'previous_items' => count($previousState['items']),
+            'new_items' => count($newState['items']),
+            'total_change' => $newState['total'] - $previousState['total']
+        ]);
+
+        // Broadcast real-time updates
+        if ($newState['items'] !== $previousState['items']) {
+            broadcast(new \App\Events\CartUpdated(
+                auth()->user(),
+                $newState['items'],
+                $newState['total']
+            ));
+        }
+
+        // Sync to database if user is logged in
+        if (auth()->check() && $newState['items'] !== $previousState['items']) {
+            \App\Jobs\SyncCartToDatabase::dispatch(
+                auth()->id(),
+                $newState['items']
+            );
+        }
     }
 
     private function findItemIndex(array $items, $productId): int
@@ -312,20 +522,21 @@ class CartStore extends BaseStore
     {
         $items = $state['items'];
         $item_count = array_sum(array_column($items, 'quantity'));
-        $total = array_sum(array_map(fn($item) => $item['price'] * $item['quantity'], $items));
+        $subtotal = array_sum(array_map(fn($item) => $item['price'] * $item['quantity'], $items));
 
         return array_merge($state, [
             'item_count' => $item_count,
-            'total' => $total
+            'subtotal' => $subtotal,
+            'total' => $subtotal - ($state['discount'] ?? 0)
         ]);
     }
 }
 ```
 
-### User Preferences Store
+### User Preferences Store with Automatic Syncing
 
 ```bash
-php artisan make:store UserPreferencesStore
+php artisan make:store UserPreferences
 ```
 
 ```php
@@ -337,6 +548,8 @@ use Roddy\StateForge\Stores\BaseStore;
 
 class UserPreferencesStore extends BaseStore
 {
+    protected string $persistenceType = 'cache';
+
     protected function initializeState(): array
     {
         return [
@@ -344,6 +557,7 @@ class UserPreferencesStore extends BaseStore
             'language' => 'en',
             'notifications' => true,
             'font_size' => 'medium',
+            'timezone' => 'UTC',
             'created_at' => now()->toISOString(),
 
             'setTheme' => function (string $theme) {
@@ -367,9 +581,9 @@ class UserPreferencesStore extends BaseStore
                 ]));
             },
 
-            'setFontSize' => function (string $size) {
+            'updateAll' => function (array $preferences) {
                 $this->setState(fn($state) => array_merge($state, [
-                    'font_size' => $size,
+                    ...$preferences,
                     'updated_at' => now()->toISOString()
                 ]));
             },
@@ -380,94 +594,66 @@ class UserPreferencesStore extends BaseStore
                     'language' => $this->language,
                     'notifications' => $this->notifications,
                     'font_size' => $this->font_size,
+                    'timezone' => $this->timezone,
                     'persistence' => $this->getPersistenceType()
                 ];
             }
         ];
     }
-}
-```
 
-### Analytics Store
-
-```bash
-php artisan make:store AnalyticsStore
-```
-
-```php
-<?php
-
-namespace App\Stores;
-
-use Roddy\StateForge\Stores\BaseStore;
-
-class AnalyticsStore extends BaseStore
-{
-    protected function initializeState(): array
+    protected function middlewares(): array
     {
         return [
-            'page_views' => 0,
-            'events' => [],
-            'sessions' => 0,
-            'created_at' => now()->toISOString(),
+            // Validate preferences
+            function(callable $updater, array $state) {
+                $newState = $updater($state);
 
-            'trackPageView' => function (string $page) {
-                $this->setState(function($state) use ($page) {
-                    $events = $state['events'];
-                    $events[] = [
-                        'type' => 'page_view',
-                        'page' => $page,
-                        'timestamp' => now()->toISOString()
-                    ];
+                $allowedThemes = ['light', 'dark', 'system'];
+                $allowedLanguages = ['en', 'es', 'fr', 'de'];
+                $allowedFontSizes = ['small', 'medium', 'large'];
 
-                    return array_merge($state, [
-                        'page_views' => $state['page_views'] + 1,
-                        'events' => $events,
-                        'updated_at' => now()->toISOString()
-                    ]);
-                });
-            },
+                if (isset($newState['theme']) && !in_array($newState['theme'], $allowedThemes)) {
+                    throw new \InvalidArgumentException("Invalid theme: {$newState['theme']}");
+                }
 
-            'trackEvent' => function (string $event, array $data = []) {
-                $this->setState(function($state) use ($event, $data) {
-                    $events = $state['events'];
-                    $events[] = [
-                        'type' => 'custom_event',
-                        'event' => $event,
-                        'data' => $data,
-                        'timestamp' => now()->toISOString()
-                    ];
+                if (isset($newState['language']) && !in_array($newState['language'], $allowedLanguages)) {
+                    throw new \InvalidArgumentException("Invalid language: {$newState['language']}");
+                }
 
-                    return array_merge($state, [
-                        'events' => $events,
-                        'updated_at' => now()->toISOString()
-                    ]);
-                });
-            },
+                if (isset($newState['font_size']) && !in_array($newState['font_size'], $allowedFontSizes)) {
+                    throw new \InvalidArgumentException("Invalid font size: {$newState['font_size']}");
+                }
 
-            'newSession' => function () {
-                $this->setState(fn($state) => array_merge($state, [
-                    'sessions' => $state['sessions'] + 1,
-                    'updated_at' => now()->toISOString()
-                ]));
-            },
-
-            'getAnalytics' => function () {
-                return [
-                    'page_views' => $this->page_views,
-                    'sessions' => $this->sessions,
-                    'total_events' => count($this->events),
-                    'persistence' => $this->getPersistenceType()
-                ];
-            },
-
-            'flushEvents' => function () {
-                $this->setState(fn($state) => array_merge($state, [
-                    'events' => [],
-                    'updated_at' => now()->toISOString()
-                ]));
+                return $newState;
             }
         ];
+    }
+
+    protected function onUpdate(array $previousState, array $newState): void
+    {
+        // Sync to database when user is logged in
+        if (auth()->check()) {
+            \App\Jobs\SyncPreferencesToDatabase::dispatch(
+                auth()->id(),
+                $newState
+            );
+        }
+
+        // Update session based on preferences
+        if ($newState['theme'] !== $previousState['theme']) {
+            session(['theme' => $newState['theme']]);
+        }
+
+        if ($newState['language'] !== $previousState['language']) {
+            session(['locale' => $newState['language']]);
+            app()->setLocale($newState['language']);
+        }
+
+        // Log preference changes
+        \Log::info('User preferences updated', [
+            'user_id' => auth()->id(),
+            'changes' => array_diff_assoc($newState, $previousState)
+        ]);
     }
 }
 ```
@@ -476,25 +662,35 @@ class AnalyticsStore extends BaseStore
 
 ### StateForge Facade
 
-#### Basic Usage
-
 ```php
+use Roddy\StateForge\Facades\StateForge;
 use App\Stores\CounterStore;
 
-// Get or create a store (auto-discovered)
-$store = useStore(CounterStore::class);
+// Get or create store (auto-discovered)
+$store = StateForge::get(CounterStore::class);
 
 // Create store with custom configuration
-$store = useStore(CounterStore::class, [
+$store = StateForge::create(CounterStore::class, [
     'persistence' => 'cache',
     'cache_ttl' => 3600
 ]);
+
+// Store management
+StateForge::all(); // Get all stores
+StateForge::exists(CounterStore::class); // Check if store exists
+StateForge::reset(CounterStore::class); // Reset specific store
+StateForge::reset(); // Reset all stores
+StateForge::getStoreInfo(); // Get store information
+StateForge::getClientId(); // Get client identifier
+
+// Change persistence at runtime
+StateForge::setPersistence(CounterStore::class, 'file');
 ```
 
 ### Store Instance Methods
 
 ```php
-$counter = useStore(CounterStore::class);
+$counter = StateForge::get(CounterStore::class);  // or useStore(CounterStore::class)
 
 // Access state properties
 echo $counter->count;
@@ -503,259 +699,66 @@ echo $counter->created_at;
 // Call store methods
 $counter->increment(5);
 $counter->decrement(2);
-$counter->reset();
+$counter->resetState();
 
-// Get full state
+// Get state
 $state = $counter->getState();
 
-// Subscribe to state changes
-$counter->subscribe(function($previousState, $newState) {
-    Log::info('State changed', [
-        'from' => $previousState['count'],
-        'to' => $newState['count']
-    ]);
-});
+// Hooks
+$counter->before('method', $callback);
+$counter->after('method', $callback);
 
-// Get persistence type
+// Events
+$counter->on('event', $listener);
+$counter->off('event', $listener);
+
+// Lifecycle info
 $persistence = $counter->getPersistenceType(); // 'file', 'cache', 'session', 'none'
+$hooks = $counter->getHookInfo(); // Get hook information
+$listeners = $counter->getEventListeners(); // Get event listeners
 ```
 
 ## 💾 Persistence Options
 
 ### File Persistence (Default)
 
-**Best for**: Long-term data that should survive browser restarts and system reboots
-
 ```php
-useStore(CounterStore::class, [
-    'persistence' => 'file'
-]);
+protected string $persistenceType = 'file';
 ```
 
-**Characteristics:**
-
--   ✅ Survives browser restarts
--   ✅ Survives system reboots
--   ✅ No expiration
--   ⚠️ Requires disk space
--   ⚠️ Needs cleanup
+- **Survives**: Browser restarts, system reboots
+- **Storage**: JSON files in `storage/app/private/stateforge`
+- **Best for**: Long-term data, user preferences, shopping carts
 
 ### Cache Persistence
 
-**Best for**: Temporary data with expiration
-
 ```php
-useStore(CounterStore::class, [
-    'persistence' => 'cache',
-    'cache_ttl' => 3600, // 1 hour
-    'cache_driver' => 'redis' // optional
-]);
+protected string $persistenceType = 'cache';
 ```
 
-**Characteristics:**
-
--   ✅ Survives browser restarts
--   ✅ Configurable TTL
--   ✅ Can use Redis, Memcached, etc.
--   ❌ Expires after TTL
--   ❌ Cache may be cleared
+- **Survives**: Browser restarts (with TTL)
+- **Storage**: Laravel cache (Redis, Memcached, etc.)
+- **Best for**: Temporary data, session-like data
 
 ### Session Persistence
 
-**Best for**: Data that should only live for a browsing session
-
 ```php
-useStore(CounterStore::class, [
-    'persistence' => 'session'
-]);
+protected string $persistenceType = 'session';
 ```
 
-**Characteristics:**
-
--   ✅ Survives page refreshes
--   ✅ Automatic cleanup
--   ❌ Lost on browser close
--   ❌ Limited storage
+- **Survives**: Page refreshes only
+- **Storage**: Laravel session
+- **Best for**: Flash data, temporary calculations
 
 ### No Persistence
 
-**Best for**: Volatile, in-memory data
-
 ```php
-useStore(CounterStore::class, [
-    'persistence' => 'none'
-]);
+protected string $persistenceType = 'none';
 ```
 
-**Characteristics:**
-
--   ✅ Fastest performance
--   ✅ No storage overhead
--   ❌ Lost on page refresh
--   ❌ Not shared between requests
-
-## 🚀 Advanced Usage
-
-### Using in Blade Views
-
-```blade
-@php
-    $counter = useStore(\App\Stores\CounterStore::class);
-    $cart = useStore(\App\Stores\CartStore::class);
-    $prefs = useStore(\App\Stores\UserPreferencesStore::class);
-@endphp
-
-<div class="dashboard">
-    <div class="counter-widget">
-        <h3>Count: <span id="counter-value">{{ $counter->count }}</span></h3>
-        <button onclick="incrementCounter()" class="btn btn-primary">+</button>
-        <button onclick="decrementCounter()" class="btn btn-secondary">-</button>
-    </div>
-
-    <div class="cart-widget">
-        <h4>Cart: {{ $cart->item_count }} items</h4>
-        <p>Total: ${{ number_format($cart->total, 2) }}</p>
-    </div>
-
-    <div class="preferences-widget">
-        <p>Theme: {{ $prefs->theme }}</p>
-        <p>Language: {{ $prefs->language }}</p>
-    </div>
-</div>
-
-<script>
-function incrementCounter() {
-    fetch('/counter/increment', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        document.getElementById('counter-value').textContent = data.new_count;
-    });
-}
-
-function decrementCounter() {
-    fetch('/counter/decrement', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        document.getElementById('counter-value').textContent = data.new_count;
-    });
-}
-</script>
-```
-
-### Using in Route Closures
-
-```php
-// routes/web.php
-Route::get('/api/counter', function () {
-    $counter = useStore(\App\Stores\CounterStore::class);
-    return response()->json($counter->getInfo());
-});
-
-Route::post('/api/counter/increment', function () {
-    $counter = useStore(\App\Stores\CounterStore::class);
-    $counter->increment();
-    return response()->json(['count' => $counter->count]);
-});
-
-Route::get('/api/cart/summary', function () {
-    $cart = useStore(\App\Stores\CartStore::class);
-    return response()->json($cart->getSummary());
-});
-```
-
-### Custom Middleware
-
-```php
-<?php
-
-namespace App\Middlewares;
-
-use Roddy\StateForge\Contracts\Middleware;
-
-class LoggingMiddleware implements Middleware
-{
-    public function __invoke(callable $updater, array $state): array
-    {
-        $start = microtime(true);
-        $newState = $updater($state);
-        $duration = round((microtime(true) - $start) * 1000, 2);
-
-        \Log::debug('State update completed', [
-            'duration_ms' => $duration,
-            'changed_keys' => array_keys(array_diff_assoc($newState, $state))
-        ]);
-
-        return $newState;
-    }
-}
-
-class AnalyticsMiddleware implements Middleware
-{
-    public function __invoke(callable $updater, array $state): array
-    {
-        $newState = $updater($state);
-
-        // Track state changes for analytics
-        if (app()->environment('production')) {
-            \App\Jobs\TrackStateChange::dispatch(
-                get_class($this),
-                array_keys(array_diff_assoc($newState, $state))
-            );
-        }
-
-        return $newState;
-    }
-}
-
-// Usage
-$store->use(new \App\Middlewares\LoggingMiddleware());
-$store->use(new \App\Middlewares\AnalyticsMiddleware());
-```
-
-### Using in Services
-
-```php
-<?php
-
-namespace App\Services;
-
-use Roddy\StateForge\Facades\StateForge;
-use App\Stores\CounterStore;
-use App\Stores\CartStore;
-
-class ShoppingService
-{
-    public function addToCart($productId, $name, $price, $quantity = 1)
-    {
-        $cart = useStore(CartStore::class);
-        $cart->addItem($productId, $name, $price, $quantity);
-
-        // Also track analytics
-        $counter = useStore(CounterStore::class);
-        $counter->increment();
-
-        return $cart->getSummary();
-    }
-
-    public function getCartSummary()
-    {
-        $cart = useStore(CartStore::class);
-        return $cart->getSummary();
-    }
-}
-```
+- **Survives**: Current request only
+- **Storage**: Memory
+- **Best for**: Volatile data, calculations
 
 ## ⚙️ Configuration
 
@@ -770,7 +773,7 @@ return [
 
     'persistence' => [
         'file' => [
-            'path' => storage_path('temp/stateforge'),
+            'path' => storage_path('app/private/stateforge'),
             'auto_cleanup' => true,
             'cleanup_after_days' => 30,
         ],
@@ -788,7 +791,7 @@ return [
 
     'client' => [
         'cookie_name' => 'stateforge_client_id',
-        'cookie_lifetime' => 60 * 24 * 365, // 1 year in minutes
+        'cookie_lifetime' => 60 * 24 * 365, // 1 year
         'cleanup_after_days' => 30,
     ],
 
@@ -799,36 +802,129 @@ return [
 ];
 ```
 
-### Custom Configuration Example
+## 🚀 Advanced Usage
+
+### Using in Livewire Components
 
 ```php
-// config/stateforge.php
-return [
-    'default' => [
-        'persistence' => 'cache', // Change default to cache
-        'auto_persist' => true,
-    ],
+<?php
 
-    'persistence' => [
-        'file' => [
-            'path' => storage_path('app/stateforge'), // Custom path
-            'auto_cleanup' => true,
-            'cleanup_after_days' => 7, // Clean up after 7 days
-        ],
+namespace App\Livewire;
 
-        'cache' => [
-            'driver' => 'redis', // Use Redis
-            'prefix' => 'myapp:state',
-            'ttl' => 3600 * 24 * 7, // 1 week
-        ],
-    ],
+use Livewire\Component;
+use Roddy\StateForge\Facades\StateForge;
+use App\Stores\CounterStore;
 
-    'client' => [
-        'cookie_name' => 'myapp_client_id',
-        'cookie_lifetime' => 60 * 24 * 30, // 30 days
-        'cleanup_after_days' => 7,
-    ],
-];
+class CounterComponent extends Component
+{
+    public $count = 0;
+
+    protected $counter;
+
+    public function mount()
+    {
+        $this->counter = StateForge::get(CounterStore::class); // or useStore(CounterStore::class)
+        $this->count = $this->counter->count;
+
+        // onUpdate() will handle automatic syncing
+    }
+
+    public function increment()
+    {
+        $this->counter->increment();
+        $this->count = $this->counter->count;
+    }
+
+    public function render()
+    {
+        return view('livewire.counter-component');
+    }
+}
+```
+
+### Using in Blade Views
+
+```blade
+@php
+    $counter = useStore(\App\Stores\CounterStore::class);
+    $cart = useStore(\App\Stores\CartStore::class);
+@endphp
+
+<div class="dashboard">
+    <div class="counter">
+        <h3>Count: {{ $counter->count }}</h3>
+        <button onclick="incrementCounter()">+</button>
+    </div>
+
+    <div class="cart">
+        <h4>Cart Items: {{ $cart->item_count }}</h4>
+        <p>Total: ${{ number_format($cart->total, 2) }}</p>
+    </div>
+</div>
+
+<script>
+function incrementCounter() {
+    fetch('/counter/increment', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        }
+    });
+}
+</script>
+```
+
+### Custom Middleware Classes
+
+```php
+<?php
+
+namespace App\StateForge\Middlewares;
+
+use Roddy\StateForge\Contracts\Middleware;
+
+class ValidationMiddleware implements Middleware
+{
+    public function __invoke(callable $updater, array $state): array
+    {
+        $newState = $updater($state);
+
+        // Add validation logic
+        if (isset($newState['count']) && $newState['count'] < 0) {
+            throw new \InvalidArgumentException('Count cannot be negative');
+        }
+
+        return $newState;
+    }
+}
+
+class AnalyticsMiddleware implements Middleware
+{
+    public function __invoke(callable $updater, array $state): array
+    {
+        $newState = $updater($state);
+
+        // Track state changes
+        if (app()->environment('production')) {
+            \App\Jobs\TrackStateChange::dispatch(
+                get_class($this),
+                array_keys(array_diff_assoc($newState, $state))
+            );
+        }
+
+        return $newState;
+    }
+}
+
+// Usage in store
+protected function middlewares(): array
+{
+    return [
+        \App\StateForge\Middlewares\ValidationMiddleware::class,
+        \App\StateForge\Middlewares\AnalyticsMiddleware::class,
+    ];
+}
 ```
 
 ## 🧹 Maintenance
@@ -841,126 +937,65 @@ php artisan stateforge:cleanup
 
 # Clean up stores for clients not seen in 60 days
 php artisan stateforge:cleanup --days=60
+
+# Schedule cleanup (in app/Console/Kernel.php)
+$schedule->command('stateforge:cleanup --days=30')->daily();
 ```
 
-### Store Management Commands
+### Store Creation
 
 ```bash
 # Create a new store
 php artisan make:store ProductCatalog
 
-# Create store with custom name
-php artisan make:store UserShoppingCart
-```
-
-### Automated Cleanup
-
-You can schedule cleanup in your `app/Console/Kernel.php`:
-
-```php
-protected function schedule(Schedule $schedule)
-{
-    $schedule->command('stateforge:cleanup --days=30')->daily();
-}
+# Stores are automatically discovered from app/Stores/
 ```
 
 ## 🏆 Best Practices
 
 ### Store Design
 
-1. **Single Responsibility**: Each store should manage one logical unit of state
-2. **Descriptive Names**: Use clear, action-oriented method names
-3. **Immutable Updates**: Always return new state in `setState`
-4. **Minimal State**: Only store what you need
+- Keep stores focused on a single responsibility
+- Use descriptive method names
+- Leverage `onUpdate()` for side effects
+- Add validation in middlewares
 
-```php
-// ✅ Good - focused store
-class CartStore extends BaseStore
-{
-    protected function initializeState(): array
-    {
-        return [
-            'items' => [],
-            'total' => 0,
-            'addItem' => function() { /* ... */ },
-            'removeItem' => function() { /* ... */ }
-        ];
-    }
-}
+### Performance
 
-// ❌ Avoid - mixed concerns
-class UserStore extends BaseStore
-{
-    protected function initializeState(): array
-    {
-        return [
-            'profile' => [],
-            'cart' => [],
-            'preferences' => [],
-            // Too many responsibilities!
-        ];
-    }
-}
-```
+- Choose appropriate persistence type
+- Use cache persistence for frequently accessed data
+- Clean up old stores regularly
+- Monitor store sizes
 
-### Method Naming
+### Security
 
-```php
-// ✅ Good - clear action names
-'incrementCounter' => function() { /* ... */ },
-'addToCart' => function() { /* ... */ },
-'toggleTheme' => function() { /* ... */ },
-
-// ❌ Avoid - vague names
-'doStuff' => function() { /* ... */ },
-'update' => function() { /* ... */ },
-'handle' => function() { /* ... */ }
-```
-
-### Persistence Strategy
-
-| Use Case               | Recommended Persistence |
-| ---------------------- | ----------------------- |
-| Shopping cart          | `file` or `cache`       |
-| User preferences       | `file`                  |
-| Analytics data         | `cache` (with TTL)      |
-| Form drafts            | `session`               |
-| Temporary calculations | `none`                  |
+- Never store sensitive data without encryption
+- Validate all inputs in middlewares
+- Use appropriate persistence for data sensitivity
 
 ## 🐛 Troubleshooting
 
-### Common Issues
-
-#### Method not found
-
-**Problem:**
+### Store returns `null`
 
 ```php
-$store->nonExistentMethod(); // BadMethodCallException
+// ❌ Wrong - might create new instance
+$store = new CounterStore();
+
+// ✅ Correct - use facade
+$store = StateForge::get(CounterStore::class);
 ```
 
-**Solution:**
+### Hooks not working
 
--   Ensure method is defined in `initializeState()`
--   Method must be a closure
--   Check for typos in method names
+- Ensure you're using the same store instance
+- Check that hooks are added before calling methods
+- Verify method signatures match
 
-#### Persistence not working
+### Persistence issues
 
-**File Persistence:**
-
--   Check `storage/temp/stateforge` directory permissions
--   Verify disk space
-
-**Cache Persistence:**
-
--   Check cache configuration
--   Verify cache driver is working
-
-**Session Persistence:**
-
--   Check session configuration
--   Verify session driver
+- Check storage permissions for file persistence
+- Verify cache configuration for cache persistence
+- Ensure session is configured for session persistence
 
 ## ❓ FAQ
 
@@ -992,6 +1027,10 @@ Minimal. StateForge is optimized for performance with lazy loading and efficient
 
 Yes! Each store can have its own persistence configuration.
 
+## 📄 License
+
+StateForge is open-sourced software licensed under the MIT license.
+
 ## 🤝 Contributing
 
 We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING) for details.
@@ -1009,9 +1048,9 @@ StateForge is open-sourced software licensed under the [MIT license](LICENCE).
 
 ## 🙏 Acknowledgments
 
--   Inspired by modern state management libraries like Zustand and Redux
--   Built with the Laravel community in mind
--   Thanks to all contributors and users
+- Inspired by modern state management libraries like Zustand and Redux
+- Built with the Laravel community in mind
+- Thanks to all contributors and users
 
 ---
 

@@ -25,3 +25,23 @@ if (!function_exists('useStore')) {
         return StateForge::create($class, $options);
     }
 }
+
+if (!function_exists('callStoreAction')) {
+    /**
+     * Call an action on a store.
+     *
+     * @param string $storeClass
+     * @param string $action
+     * @param mixed ...$args
+     * @return mixed
+     */
+    function callStoreAction(string $storeClass, string $action, ...$args)
+    {
+        $store = useStore($storeClass);
+        if (!method_exists($store, $action)) {
+            throw new InvalidArgumentException("Action {$action} does not exist on store {$storeClass}.");
+        }
+
+        return $store->{$action}(...$args);
+    }
+}
