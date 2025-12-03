@@ -95,7 +95,22 @@ class StateForgeManager
 
     public function get(string $storeClass): ?BaseStore
     {
-        return $this->stores->get($storeClass);
+        // Return existing store if it exists
+        if ($this->stores->has($storeClass)) {
+            return $this->stores->get($storeClass);
+        }
+
+        // Check if class exists and is a valid store
+        if (!class_exists($storeClass)) {
+            throw new \InvalidArgumentException("Store class {$storeClass} does not exist");
+        }
+
+        if (!is_subclass_of($storeClass, BaseStore::class)) {
+            throw new \InvalidArgumentException("Class {$storeClass} must extend BaseStore");
+        }
+
+        // Auto-create the store with default configuration
+        return $this->create($storeClass);
     }
 
     public function all(): Collection
