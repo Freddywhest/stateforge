@@ -5,7 +5,7 @@
   "license": "MIT",
   "autoload": {
     "psr-4": {
-      "Roddy\\Stateforge\\": "src/"
+      "Roddy\\StateForge\\": "src/"
     },
     "files": [
       "src/helpers.php"
@@ -31,7 +31,7 @@
   "extra": {
     "laravel": {
       "providers": [
-        "Roddy\\Stateforge\\StateForgeServiceProvider"
+        "Roddy\\StateForge\\StateForgeServiceProvider"
       ]
     }
   }
