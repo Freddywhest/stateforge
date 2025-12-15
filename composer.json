@@ -31,7 +31,7 @@
   "extra": {
     "laravel": {
       "providers": [
-        "Roddy\\Stateforge\\StateforgeServiceProvider"
+        "Roddy\\Stateforge\\StateForgeServiceProvider"
       ]
     }
   }
